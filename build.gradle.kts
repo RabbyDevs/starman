@@ -4,7 +4,7 @@ plugins {
 }
 
 group = "org.starfall"
-version = "1.0-SNAPSHOT"
+version = "0.5"
 
 repositories {
     mavenCentral()
@@ -23,6 +23,7 @@ tasks.test {
 tasks.jar {
     manifest {
         attributes["Agent-Class"] = "Agent"
+        attributes["Main-Class"] = "MainKt"
         attributes["Premain-Class"] = "Agent"
         attributes["Can-Retransform-Classes"] = true
         attributes["Can-Redefine-Classes"] = true
