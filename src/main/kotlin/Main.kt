@@ -127,7 +127,7 @@ object Agent {
 
     @JvmStatic
     fun premain(args: String?, inst: Instrumentation) {
-        println("Agent loaded successfully.")
+        println("Starman loaded successfully.")
         main()
     }
 }
