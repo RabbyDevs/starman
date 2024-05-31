@@ -100,7 +100,7 @@ fun main() {
                 zip.entries().asSequence().forEach { entry ->
                     zip.getInputStream(entry).use { input ->
                         if (entry.isDirectory) {
-                            File("$folder/${entry.name}").mkdir()
+                            if (!File("$folder/${entry.name}").exists()) File("$folder/${entry.name}").mkdir()
                         } else {
                             File("$folder/${entry.name}").outputStream().use { output ->
                                 input.copyTo(output)
