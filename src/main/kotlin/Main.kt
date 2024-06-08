@@ -64,7 +64,8 @@ fun main() {
             hashFile.writeText("no hash")
         }
         if (!File(folder).exists() or !File(folder).isDirectory) {
-            statusLabel.text = generateText("Error: $folder folder does not exist or is not a directory.")
+            statusLabel.text = generateText("Error: $folder folder does not exist or is not a directory, automatically creating it if it doesn't exist.")
+            if (!File(folder).exists()) {File(folder).mkdir()}
             TimeUnit.SECONDS.sleep(3)
             return@forEach
         }
