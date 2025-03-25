@@ -15,7 +15,7 @@ import javax.swing.*
 private fun randomUUID() = UUID.randomUUID().toString()
 
 private fun backup(folder: String) {
-    val backupFolder = File("$folder/${folder}BackupStarfall-${randomUUID()}")
+    val backupFolder = File("$folder/${folder}BackupStarman")
     if (!backupFolder.exists()) {
         backupFolder.mkdir()
     }
@@ -56,7 +56,7 @@ fun main() {
     frame.setLocationRelativeTo(null)
     frame.isVisible = true
 
-    val folders = arrayOf("mods", "config")
+    val folders = arrayOf("mods", "config", "resourcepacks")
     val noBackupFolders = arrayOf("config")
     folders.forEach { folder ->
         val hashFile = File("$folder-hash.txt")
