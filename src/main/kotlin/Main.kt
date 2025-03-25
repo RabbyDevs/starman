@@ -56,8 +56,8 @@ fun main() {
     frame.setLocationRelativeTo(null)
     frame.isVisible = true
 
-    val folders = arrayOf("mods", "config", "resourcepacks")
-    val noBackupFolders = arrayOf("config", "resourcepacks")
+    val folders = arrayOf("mods", "config")
+    val noBackupFolders = arrayOf("config")
     folders.forEach { folder ->
         val hashFile = File("$folder-hash.txt")
         if (!hashFile.exists()) {
