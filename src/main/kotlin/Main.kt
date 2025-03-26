@@ -1,3 +1,4 @@
+
 import com.github.kittinunf.fuel.httpGet
 import java.awt.Color
 import java.awt.Component
@@ -32,122 +33,110 @@ private fun generateText(text: String): String {
 }
 
 fun main() {
-    SwingUtilities.invokeLater {
-        val frame = JFrame("Starman: Modpack Manager from Hell.")
-        frame.defaultCloseOperation = JFrame.EXIT_ON_CLOSE
-        frame.setSize(400, 350)
+    val frame = JFrame("Starman: Modpack Manager from Hell.")
+    frame.defaultCloseOperation = JFrame.EXIT_ON_CLOSE
+    frame.setSize(400, 350)
 
-        val panel = JPanel()
-        panel.layout = BoxLayout(panel, BoxLayout.Y_AXIS)
-        panel.background = Color.BLACK
+    val panel = JPanel()
+    panel.layout = BoxLayout(panel, BoxLayout.Y_AXIS)
+    panel.background = Color.BLACK
 
-        val statusLabel = JLabel(generateText("Not started"))
-        statusLabel.foreground = Color.WHITE
-        statusLabel.alignmentX = Component.CENTER_ALIGNMENT
-        statusLabel.verticalAlignment = SwingConstants.TOP
-        statusLabel.horizontalAlignment = SwingConstants.CENTER
-        statusLabel.preferredSize = Dimension(200, 100)
+    val statusLabel = JLabel(generateText("Not started"))
+    statusLabel.foreground = Color.WHITE
+    statusLabel.alignmentX = Component.CENTER_ALIGNMENT
+    statusLabel.verticalAlignment = SwingConstants.TOP // Align text to the top
+    statusLabel.horizontalAlignment = SwingConstants.CENTER // Align text to the center horizontally
+    statusLabel.preferredSize = Dimension(200, 100)
 
-        val loadingIcon = Thread.currentThread().contextClassLoader.getResource("loading.gif")?.let { ImageIcon(it) }
-        val loadingLabel = if (loadingIcon != null) JLabel(loadingIcon) else JLabel("Loading...")
-        loadingLabel.alignmentX = Component.CENTER_ALIGNMENT
+    val loadingIcon = ImageIcon(object {}.javaClass.getResource("/loading.gif"))
+    val loadingLabel = JLabel(loadingIcon)
+    loadingLabel.alignmentX = Component.CENTER_ALIGNMENT
 
-        panel.add(loadingLabel)
-        panel.add(statusLabel)
+    panel.add(loadingLabel)
+    panel.add(statusLabel)
 
-        frame.contentPane.add(panel)
-        frame.setLocationRelativeTo(null)
-        frame.isVisible = true
+    frame.contentPane.add(panel)
+    frame.setLocationRelativeTo(null)
+    frame.isVisible = true
 
-        Thread {
-            syncModpack(statusLabel, frame)
-        }.start()
-    }
-}
-
-fun syncModpack(statusLabel: JLabel, frame: JFrame) {
     val folders = arrayOf("mods", "config")
     val noBackupFolders = arrayOf("config")
-
     folders.forEach { folder ->
         val hashFile = File("$folder-hash.txt")
-        if (!hashFile.exists()) hashFile.writeText("no hash")
-        
-        val folderFile = File(folder)
-        if (!folderFile.exists() || !folderFile.isDirectory) {
-            statusLabel.text = generateText("Error: $folder does not exist. Creating...")
-            folderFile.mkdir()
-            TimeUnit.SECONDS.sleep(2)
+        if (!hashFile.exists()) {
+            hashFile.writeText("no hash")
+        }
+        if (!File(folder).exists() or !File(folder).isDirectory) {
+            statusLabel.text = generateText("Error: $folder folder does not exist or is not a directory, automatically creating it if it doesn't exist.")
+            if (!File(folder).exists()) {File(folder).mkdir()}
+            TimeUnit.SECONDS.sleep(3)
             return@forEach
         }
-
         val hashUrl = "https://mcfiles.starfall-studios.com/files/$folder-hash.txt"
         val hashResponse = hashUrl.httpGet().response()
         val hash = hashResponse.second.data
         val outputFile = File("$folder-server-hash.txt")
-        outputFile.writeBytes(hash)
-
+        FileOutputStream(outputFile).use {
+            it.write(hash)
+        }
         if (outputFile.readText() == hashFile.readText()) {
             statusLabel.text = generateText("$folder is already synced, skipping...")
             return@forEach
         }
-
         if (!noBackupFolders.contains(folder)) {
-            statusLabel.text = generateText("Backing up $folder...")
+            statusLabel.text = generateText("Backing up $folder.")
             backup(folder)
-            statusLabel.text = generateText("Backup complete.")
+            statusLabel.text = generateText("Finished backing up $folder.")
             TimeUnit.SECONDS.sleep(1)
         }
-
-        statusLabel.text = generateText("Downloading $folder.zip...")
+        statusLabel.text = generateText("Getting $folder files from server...")
         val url = "https://mcfiles.starfall-studios.com/files/$folder.zip"
         val response = url.httpGet().response()
-
         if (response.second.statusCode == 200) {
-            val zipFile = File("$folder.zip")
-            zipFile.writeBytes(response.second.data)
+            statusLabel.text = generateText("$folder files obtained, unzipping and placing them.")
+            val responseBody = response.second.data
+            val outputFile = File("$folder.zip")
+            FileOutputStream(outputFile).use {
+                it.write(responseBody)
+            }
+            hashFile.writeText(HashUtils.getCheckSumFromFile(MessageDigest.getInstance(MessageDigestAlgorithm.SHA_512), outputFile))
+            ZipFile("$folder.zip").use { zip ->
+                zip.entries().asSequence().forEach { entry ->
+                    zip.getInputStream(entry).use { input ->
+                        if (entry.isDirectory) {
+                            if (!File("$folder/${entry.name}").exists()) File("$folder/${entry.name}").mkdir()
+                        } else {
+                            val targetFile = File(folder, entry.name.removePrefix("$folder/"))
 
-            hashFile.writeText(hashFile.hash())
-            extractZip(zipFile, folder)
-            zipFile.delete()
-
-            statusLabel.text = generateText("Finished syncing $folder.")
-        } else {
-            statusLabel.text = generateText("Error: Failed to download $folder.zip.")
-            TimeUnit.SECONDS.sleep(5)
-            frame.dispose()
-        }
-    }
-    statusLabel.text = generateText("Fully synced.")
-    TimeUnit.SECONDS.sleep(3)
-    frame.dispose()
-}
-
-fun extractZip(zipFile: File, destinationFolder: String) {
-    ZipFile(zipFile).use { zip ->
-        zip.entries().asSequence().forEach { entry ->
-            val targetFile = File(destinationFolder, entry.name)
-
-            if (entry.isDirectory) {
-                targetFile.mkdirs()
-            } else {
-                targetFile.parentFile.mkdirs()
-                zip.getInputStream(entry).use { input ->
-                    targetFile.outputStream().use { output ->
-                        input.copyTo(output)
+                            if (entry.isDirectory) {
+                                targetFile.mkdirs()
+                            } else {
+                                targetFile.parentFile.mkdirs() // Ensure parent directory exists
+                                targetFile.outputStream().use { output ->
+                                    input.copyTo(output)
+                                }
+                            }
+                            
+                        }
                     }
                 }
             }
+            outputFile.delete()
+            statusLabel.text = generateText("Finished syncing $folder.")
+        } else {
+            statusLabel.text = generateText("Error: Failed to download $folder.zip. Status code: ${response.second.statusCode}")
+            TimeUnit.SECONDS.sleep(5)
+            frame.dispose()
+            return@forEach
         }
     }
-}
 
-fun File.hash(): String {
-    val digest = MessageDigest.getInstance("SHA-512")
-    return digest.digest(this.readBytes()).joinToString("") { "%02x".format(it) }
+    statusLabel.text = generateText("Fully synced.")
+    frame.dispose()
 }
 
 object Agent {
+
     @JvmStatic
     fun premain(args: String?, inst: Instrumentation) {
         println("Starman loaded successfully.")
