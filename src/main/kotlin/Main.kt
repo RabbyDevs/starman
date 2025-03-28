@@ -49,12 +49,11 @@ fun main() {
         if (!hashFile.exists()) {
             hashFile.writeText("no hash")
         }
-        if (!File(folder).exists() or !File(folder).isDirectory) {
-            log("Error: $folder folder does not exist or is not a directory, automatically creating it if necessary.")
-            if (!File(folder).exists()) { File(folder).mkdir() }
-            TimeUnit.SECONDS.sleep(3)
-            return@forEach
-        }
+        val folderFile = File(folder)
+        if (!folderFile.exists() || !folderFile.isDirectory) {
+            log("Warning: $folder folder does not exist or is not a directory. Creating it now.")
+            folderFile.mkdirs()
+        }        
         
         val hashUrl = "https://mcfiles.starfall-studios.com/files/$folder-hash.txt"
         val hashResponse = hashUrl.httpGet().response()
